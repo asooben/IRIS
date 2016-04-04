@@ -49,7 +49,6 @@ public class HypermediaTemplateHelper {
 	// regex for uri template pattern
 	public static Pattern TEMPLATE_PATTERN = Pattern.compile("\\{(.*?)\\}");
 
-
 	/**
 	 * Provide path parameters for a transition's target state.
 	 * @param transition transition
@@ -178,50 +177,79 @@ public class HypermediaTemplateHelper {
 		return "([^\\/]*)";
 	}
 	
-    private static LinkedHashMap<String, Object> normalizeProperties(Map<String, Object> properties) {
+	/**
+	 * <p>Returns a map having the original properties plus new entries created from properties in OCollections.   
+	 *  
+	 * <p>Example: For a map having value [OCollection (A) -> OComplexType (B) -> OProperty(C) -> value D]
+	 * this method will generate a map entry with key A.B.C and value D 
+	 * @param properties
+	 * @return
+	 */
+    public static LinkedHashMap<String, Object> normalizeProperties(Map<String, Object> properties) {
         LinkedHashMap<String, Object> propertiesNormalized = new LinkedHashMap <String, Object>();
-        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {            
             if (entry.getValue() instanceof OCollection) {
                 OCollection<?> collection = (OCollection<?>) entry.getValue();
-                String fullyQualifiedTypeName = collection.getType().getFullyQualifiedTypeName();
-                if (null!=fullyQualifiedTypeName) {            
-                                                             
-                    //Regex to find the group number id of the Mv
-                    //Example:  GroupOfMultivalues_Mv1Group will return 1 - groupId = 1
-                    //          GroupOfMultivalues_Mv2Group will return 2 - groupId = 2
-                    //          GroupOfMultivalues_MvGroup will return null - use default groupId = 1
-                    String groupId = "1";
-                    Pattern reGroup = Pattern.compile("Mv.*(\\d)Group");
-                    Matcher mGroup = reGroup.matcher(fullyQualifiedTypeName);                    
-                    if(mGroup.find()){ groupId = mGroup.group(1); }
-                    
-                    //Regex to find the name of the Mv
-                    //Example:  GroupOfMultivalues_Mv1Group will return GroupOfMultivalues
-                    Pattern re = Pattern.compile("_(.*)Mv");
-                    Matcher m = re.matcher(fullyQualifiedTypeName);
-                    
-                    if(m.find()){
-                        fullyQualifiedTypeName = m.group(1);
-                        for (OObject each : collection) {
-                            OComplexObject ooComplex = (OComplexObject) each;
-                            for (OProperty<?> property : ooComplex.getProperties()) {
-                                StringBuilder complexMvPropertyName = new StringBuilder();
-                                complexMvPropertyName.append(fullyQualifiedTypeName).append("(").append(groupId).append(")");
-                                complexMvPropertyName.append(".");
-                                complexMvPropertyName.append(property.getName());
-                                if (!propertiesNormalized.containsKey(complexMvPropertyName)) {
-                                    propertiesNormalized.put(complexMvPropertyName.toString(), property.getValue());
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                if (!propertiesNormalized.containsKey(entry.getKey())) {
-                    propertiesNormalized.put(entry.getKey(), entry.getValue());
-                }
+                String collectionName = removeSourceEntityName(entry.getKey());
+                buildComplexPropertyEntry(propertiesNormalized, collection, collectionName);                    
+            } 
+            else 
+            {
+                addUniqueMapEntry(propertiesNormalized, entry.getKey(), entry.getValue());
             }
         }
         return propertiesNormalized;
+    }
+    
+    private static void buildComplexPropertyEntry(LinkedHashMap<String, Object> propertiesNormalized, OCollection<?> collection, String collectionName)
+    {
+        int elementIdx = 0;
+        for(OObject each : collection)
+        {            
+            if(each instanceof OComplexObject)
+            {                
+                OComplexObject ooComplex = (OComplexObject) each; 
+                for(OProperty<?> property : ooComplex.getProperties())
+                {
+                    StringBuilder complexMvPropertyName = new StringBuilder();
+                    complexMvPropertyName.append(collectionName).append("(").append(elementIdx).append(")").append(".");
+                    complexMvPropertyName.append(removeSourceEntityName(property.getName()));
+                    
+                    if(property.getValue() instanceof OCollection)
+                    {
+                        buildComplexPropertyEntry(propertiesNormalized, (OCollection<?>) property.getValue(), complexMvPropertyName.toString());
+                    }
+                    else
+                    {                   
+                        addUniqueMapEntry(propertiesNormalized, complexMvPropertyName.toString(), property.getValue());       
+                    }          
+                }
+            }
+            else //Primitive or Enum
+            {   
+                StringBuilder complexMvPropertyName = new StringBuilder();
+                complexMvPropertyName.append(collectionName).append("(").append(elementIdx).append(")");
+                addUniqueMapEntry(propertiesNormalized, complexMvPropertyName.toString(), each);                 
+            }           
+            elementIdx++;
+        }
+    }
+    
+    private static String removeSourceEntityName(String name)
+    {
+        if(name.contains("_"))
+        {
+            //For collectionName of format: sourceEntityName_CollNameMvGroup, return CollNameMvGroup            
+            return name.split("_")[1];
+        }
+        return name;
+    }
+    
+    private static void addUniqueMapEntry(LinkedHashMap<String, Object> propertiesNormalized, String key, Object object)
+    {
+        if (!propertiesNormalized.containsKey(key)) 
+        {
+            propertiesNormalized.put(key, object);
+        }
     }
 }

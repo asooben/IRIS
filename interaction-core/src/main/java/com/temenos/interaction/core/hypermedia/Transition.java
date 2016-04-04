@@ -276,5 +276,6 @@ public class Transition {
 		// this one's a bit special
 		this.command = new TransitionCommandSpec(method,
 				flags, evaluation, uriParameters, linkId);
-	}
+	}	
+	
 }

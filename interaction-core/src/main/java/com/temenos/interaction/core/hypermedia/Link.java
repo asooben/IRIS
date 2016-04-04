@@ -54,6 +54,9 @@ public class Link {
 	
 	//LinkId
 	private String linkId;
+	
+	//Source entity value
+	private String sourceEntityValue;
 
 	/**
 	 * Construct a simple link used for GET operations.
@@ -79,24 +82,42 @@ public class Link {
 				: transition.getTarget().getName(), rel, href, null, null,
 				method, null);
 	}
+	
+	/**
+     * Construct a link from a transition having a uri with a multivalue drill-down
+     * @param transition
+     */
+    public Link(Transition transition, String rel, String href, String method, String sourceEntityValue) {
+        this(transition, transition.getLabel() != null
+                && !transition.getLabel().equals("") ? transition.getLabel()
+                : transition.getTarget().getName(), rel, href, null, null,
+                method, null, sourceEntityValue);
+    }
 
 	public Link(Transition transition, String title, String rel, String href,
 			String[] consumes, String[] produces, String method,
-			MultivaluedMap<String, String> extensions) {
-		this.transition = transition;
-		if (title == null && transition != null) {
-			title = transition.getId();
-		}
-		id = transition != null ? transition.getId() : title;
-		this.title = title;
-		this.rel = rel;
-		this.href = href;
-		this.consumes = consumes;
-		this.produces = produces;
-		this.method = method;
-		this.extensions = extensions;
-		this.linkId = transition != null ? transition.getLinkId() : null;
+			MultivaluedMap<String, String> extensions) {		
+	    this(transition, title, rel, href, consumes, produces, method, extensions, null);
 	}
+	
+	public Link(Transition transition, String title, String rel, String href,
+            String[] consumes, String[] produces, String method,
+            MultivaluedMap<String, String> extensions, String sourceEntityValue) {
+        this.transition = transition;
+        if (title == null && transition != null) {
+            title = transition.getId();
+        }
+        id = transition != null ? transition.getId() : title;
+        this.title = title;
+        this.rel = rel;
+        this.href = href;
+        this.consumes = consumes;
+        this.produces = produces;
+        this.method = method;
+        this.extensions = extensions;
+        this.linkId = transition != null ? transition.getLinkId() : null;
+        this.sourceEntityValue = sourceEntityValue;
+    }
 
 	public Transition getTransition() {
 		return transition;
@@ -117,8 +138,12 @@ public class Link {
 	public String getHref() {
 		return href;
 	}
-
-	public String getLinkId() {
+	
+    public String getSourceEntityValue() {
+        return sourceEntityValue;
+    }
+    
+    public String getLinkId() {
 		if(linkId == null) {
 			linkId = transition != null ? transition.getLinkId() : null;	
 		} 
@@ -185,6 +210,10 @@ public class Link {
 		if (linkId != null) {
 			buf.append("; linkId=\"").append(linkId).append("\"");
 		}
+		
+		if (sourceEntityValue != null) {
+            buf.append("; sourceEntityValue=\"").append(sourceEntityValue).append("\"");
+        }
 		return buf.toString();
 	}
 
@@ -214,6 +243,7 @@ public class Link {
 		private String[] consumes;
 		private MultivaluedMap<String, String> extensions;
 		private String linkId;
+		private String sourceEntityValue;
 
 		public Builder transition(Transition transition) {
 			this.transition = transition;
@@ -264,6 +294,12 @@ public class Link {
 			this.linkId = linkId;
 			return this;
 		}
+		
+		public Builder sourceEntityValue(String sourceEntityValue)
+		{
+		    this.sourceEntityValue = sourceEntityValue;
+		    return this;
+		}
 
 		public Link build() {
 			return new Link(this);
@@ -285,6 +321,6 @@ public class Link {
 		} else {
 			this.linkId = builder.linkId;
 		}
-		
+		this.sourceEntityValue = builder.sourceEntityValue;		
 	}
 }

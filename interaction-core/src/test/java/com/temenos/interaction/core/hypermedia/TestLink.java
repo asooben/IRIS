@@ -247,5 +247,40 @@ public class TestLink {
 		assertEquals("arrivals", link.getRel());
 		assertNull(link.getLinkId());
 	}
+	
+	@Test
+	public void testSourceEntityValueEquals()
+	{
+	    Link aLink = new Link.Builder()
+        .id("id")
+        .href("href")
+        .title("title")
+        .sourceEntityValue("ABCD")
+        .build();
+	    
+	    Link aNOtherLink = new Link.Builder()
+        .id("id")
+        .href("href")
+        .title("title")
+        .sourceEntityValue("ABCD")
+        .build();
+	    assertEquals(aLink, aNOtherLink);
+
+	    aLink = new Link.Builder()
+        .linkId("EFGH")
+        .build();
+	    aNOtherLink = new Link.Builder()
+        .linkId("EFGH")
+        .build();
+	    assertEquals(aLink, aNOtherLink);
+
+	    aLink = new Link.Builder()
+        .linkId("IJKL")
+        .build();
+	    aNOtherLink = new Link.Builder()
+        .linkId("MNOP")
+        .build();
+	    assertNotSame(aLink, aNOtherLink);
+	}
 
 }

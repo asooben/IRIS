@@ -53,10 +53,18 @@ public class ODataLinkInterceptor implements LinkInterceptor {
 		
 		if(linkToAdd != null) {
 			logger.debug("Link rel["+linkToAdd.getRel()+"] title["+linkToAdd.getTitle()+"] href["+linkToAdd.getHref()+"]");
-
-			result = linkToAdd;
+			result = linkToAdd;						
+			String entitySetName = providerHelper.getEntitySet(result.getTransition().getTarget());
 			
-			rel = getODataLinkRelation(result, providerHelper.getEntitySet(result.getTransition().getTarget()));			
+			if(linkToAdd.getSourceEntityValue()!=null)
+			{
+			    rel = getODataLinkRelation(result, linkToAdd.getTransition().getSource().getEntityName() + "_" + linkToAdd.getSourceEntityValue() + "/" + entitySetName);   
+			}
+			else
+			{
+			    rel = getODataLinkRelation(result, entitySetName);   
+			}
+					
 		} else {
 			logger.warn("Link to add was null for " + resource.getEntityName());
 		}

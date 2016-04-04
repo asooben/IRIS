@@ -25,7 +25,6 @@ package com.temenos.interaction.core.hypermedia;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,15 +33,11 @@ import java.util.Map;
 import org.junit.Test;
 import org.odata4j.core.OCollection;
 import org.odata4j.core.OCollections;
+import org.odata4j.core.OComplexObject;
 import org.odata4j.core.OComplexObjects;
 import org.odata4j.core.OProperties;
 import org.odata4j.core.OProperty;
-import org.odata4j.edm.EdmCollectionType;
 import org.odata4j.edm.EdmComplexType;
-import org.odata4j.edm.EdmEntitySet;
-import org.odata4j.edm.EdmEntityType;
-import org.odata4j.edm.EdmProperty;
-import org.odata4j.edm.EdmSimpleType;
 
 public class TestHypermediaTemplateHelper {
 
@@ -143,49 +138,56 @@ public class TestHypermediaTemplateHelper {
 	}
 	
 	@Test
-    public void testMultiValueTemplateReplace() {
-	    
+	public void testOneLevelCollectionTemplateReplace()
+	{
+	    OCollection<?> contactColl = OCollections.newBuilder(null).add(createComplexObject("Email","johnEmailAddr","Tel","12345")).add(createComplexObject("Email","smithEmailAddr","Tel","66778")).build();                
         Map<String,Object> properties = new LinkedHashMap<String,Object>();
-        String enquiryName = "Airports";
-        String enquiryMVName = "AirportMv";
-
-        properties.put("Airports_Airport1", createMultivalueAirport(enquiryName,enquiryMVName, 1, "London"));
-        properties.put("Airports_Airport2", createMultivalueAirport(enquiryName,enquiryMVName, 2, "Madrid"));
-        properties.put("Airports_Airport3", createMultivalueAirport(enquiryName,enquiryMVName, 3, "Lisbon"));
+        properties.put("source_Contact", contactColl);
         
-        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/flights/Madrid",
-                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/flights/{Airport(2).AirportName}", properties));
-    }
-	
-	private Object createMultivalueAirport(String enquiryName, String enquiryMVName, Integer mvId, String airportName) {
-	    
-	    EdmEntitySet setType;
-        EdmEntityType airportsType;
-        EdmCollectionType airportCollectionType;
-        EdmComplexType airportType;
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/johnEmailAddr",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(0).Email}", properties));
         
-        List<EdmProperty.Builder> subprops = new ArrayList<EdmProperty.Builder>();
-        subprops.add(EdmProperty.newBuilder("AirportName").setType(EdmSimpleType.STRING));
-        airportType = EdmComplexType.newBuilder().setNamespace("InteractionTest").setName(enquiryName+"_"+enquiryMVName+mvId+"Group").addProperties(subprops).build();
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/12345",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(0).Tel}", properties));
         
-        List<EdmProperty.Builder> eprops = new ArrayList<EdmProperty.Builder>();
-        eprops.add(EdmProperty.newBuilder("airport").setType(new EdmCollectionType(EdmProperty.CollectionKind.Bag, airportType)));
-                   
-        EdmEntityType.Builder eet = EdmEntityType.newBuilder().setNamespace("InteractionTest").setName("Airports").addKeys(Arrays.asList("ID")).addProperties(eprops);
-        EdmEntitySet.Builder ees = EdmEntitySet.newBuilder().setName("Airports").setEntityType(eet);
-
-        setType = ees.build();
-        airportsType = (EdmEntityType)setType.getType();
-        airportCollectionType = (EdmCollectionType)airportsType.findDeclaredProperty("airport").getType();
-        airportType = (EdmComplexType)airportCollectionType.getItemType();
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/smithEmailAddr",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(1).Email}", properties));
         
-        List<OProperty<?>> oPropertiesCity = new ArrayList<OProperty<?>>();
-        oPropertiesCity.add(OProperties.string("AirportName", airportName));
-        
-        OCollection<?> city = OCollections.newBuilder(airportCollectionType).
-            add(OComplexObjects.create(airportType, oPropertiesCity)).build();
-        
-        return city;
-	    
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/66778",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(1).Tel}", properties));  
 	}
+	
+	@Test
+	public void testTwoLevelCollectionTemplateReplace()
+	{
+	    OCollection<?> pcColl = OCollections.newBuilder(null).add(createComplexObject("PostCode", "ABCD")).add(createComplexObject("PostCode", "EFGH")).build();  
+        
+        OProperty<?> contactCollectionProp =  OProperties.collection("Address", null, pcColl);
+        List<OProperty<?>> contactPropList = new ArrayList<OProperty<?>>();
+        contactPropList.add(contactCollectionProp);
+        OComplexObject contactDetails = OComplexObjects.create(EdmComplexType.newBuilder().build(), contactPropList);
+        OCollection<?> contactColl = OCollections.newBuilder(null).add(contactDetails).build();  
+        
+        Map<String,Object> properties = new LinkedHashMap<String,Object>();
+        properties.put("source_Contact", contactColl);        
+        
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/ABCD",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(0).Address(0).PostCode}", properties));
+        
+        assertEquals("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/EFGH",
+                HypermediaTemplateHelper.templateReplace("http://127.0.0.1:9081/hothouse-iris/Hothouse.svc/contact/{Contact(0).Address(1).PostCode}", properties));
+        
+	}
+	
+	private OComplexObject createComplexObject(String... values)
+    {
+        List<OProperty<?>> propertyList = new ArrayList<OProperty<?>>();        
+        for(int i=0; i<values.length; i+=2)
+        {
+            OProperty<String> property = OProperties.string(values[i], values[i+1]);
+            propertyList.add(property);
+        }        
+        OComplexObject complexObj = OComplexObjects.create(EdmComplexType.newBuilder().build(),propertyList);        
+        return complexObj;
+    }
 }

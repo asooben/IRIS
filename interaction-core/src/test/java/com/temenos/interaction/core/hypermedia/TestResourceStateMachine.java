@@ -29,6 +29,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -56,6 +57,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.odata4j.core.OCollection;
+import org.odata4j.core.OCollections;
+import org.odata4j.core.OComplexObject;
+import org.odata4j.core.OComplexObjects;
+import org.odata4j.core.OEntities;
+import org.odata4j.core.OEntity;
+import org.odata4j.core.OProperties;
+import org.odata4j.core.OProperty;
+import org.odata4j.edm.EdmComplexType;
+import org.odata4j.edm.EdmEntitySet;
 
 import com.temenos.interaction.core.MultivaluedMapImpl;
 import com.temenos.interaction.core.command.CommandController;
@@ -2124,5 +2135,185 @@ public class TestResourceStateMachine {
         // item
         assertEquals("item", links.get(1).getRel());
         assertEquals("/baseuri/edit?id="+expectedName, links.get(1).getHref());
+    }
+    
+    @Test
+    public void testInjectLinksForEachCollectionResource()
+    {
+        CollectionResourceState customerState = new CollectionResourceState("customer", "customer", new ArrayList<Action>(), "/customer()", null, null);
+        CollectionResourceState contactState = new CollectionResourceState("contact", "contact", new ArrayList<Action>(), "/contact()", null, null);
+
+        Map<String, String> uriLinkage = new HashMap<String, String>();
+        uriLinkage.put("filter", "Id eq '{Contact.Email}'");
+        customerState.addTransition(new Transition.Builder().method("GET").target(contactState).uriParameters(uriLinkage).flags(Transition.FOR_EACH).build());
+        
+        OCollection<?> contactColl = OCollections.newBuilder(null).add(createComplexObject("Email","johnEmailAddr","Tel","12345")).add(createComplexObject("Email","smithEmailAddr","Tel","66778")).build();        
+        OProperty<?> contactProp =  OProperties.collection("source_Contact", null, contactColl);
+        List<OProperty<?>> contactPropList = new ArrayList<OProperty<?>>();
+        contactPropList.add(contactProp);
+        
+        List<EntityResource<Object>> entities = new ArrayList<EntityResource<Object>>();
+        OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
+        entities.add(new EntityResource<Object>(entity));
+                
+        ResourceStateMachine rsm = new ResourceStateMachine(customerState, getOEntityTransformer(contactColl));
+        CollectionResource<Object> collectionResource = new CollectionResource<Object>(entities);
+        HTTPHypermediaRIM rimHandler = mockRIMHandler(rsm);
+        HttpHeaders headers = mock(HttpHeaders.class);      
+        Metadata metadata = mock(Metadata.class);  
+        MultivaluedMap<String, String> pathParameters = new MultivaluedMapImpl<String>();
+        @SuppressWarnings("unchecked")
+        Collection<Link> collectionLinks = rsm.injectLinks(rimHandler, new InteractionContext(mock(UriInfo.class), mock(HttpHeaders.class), pathParameters, mock(MultivaluedMap.class), customerState, mock(Metadata.class)), collectionResource, headers, metadata);
+
+        assertNotNull(collectionLinks);
+        assertFalse(collectionLinks.isEmpty());
+        assertEquals(1, collectionLinks.size());
+
+        Collection<Link> links = entities.get(0).getLinks();
+        assertNotNull(links);
+        assertFalse(links.isEmpty());
+        
+        // sort the links so we have a predictable order for this test
+        List<Link> sortedLinks = new ArrayList<Link>();
+        sortedLinks.addAll(links);
+        Collections.sort(sortedLinks, new Comparator<Link>() {
+            @Override
+            public int compare(Link o1, Link o2) {
+                return o1.getSourceEntityValue().compareTo(o2.getSourceEntityValue());
+            }            
+        });
+        assertEquals("/baseuri/contact()?filter=Id+eq+'johnEmailAddr'", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+'smithEmailAddr'", sortedLinks.get(1).getHref());
+        assertEquals(2, links.size());
+    } 
+    
+    @Test
+    public void testInjectLinksForEachCollectionResourceTwoLevel()
+    {
+        CollectionResourceState customerState = new CollectionResourceState("customer", "customer", new ArrayList<Action>(), "/customer()", null, null);
+        CollectionResourceState contactState = new CollectionResourceState("contact", "contact", new ArrayList<Action>(), "/contact()", null, null);
+
+        Map<String, String> uriLinkage = new HashMap<String, String>();
+        uriLinkage.put("filter", "Id eq '{Contact.Address.PostCode}'");
+        customerState.addTransition(new Transition.Builder().method("GET").target(contactState).uriParameters(uriLinkage).flags(Transition.FOR_EACH).build());
+        
+        //Inner collection
+        OCollection<?> postCodeColl = OCollections.newBuilder(null).add(createComplexObject("PostCode", "ABCD")).add(createComplexObject("PostCode", "EFGH")).build();  
+        
+        //Outer Collection
+        OProperty<?> addressCollProperty =  OProperties.collection("Address", null, postCodeColl);
+        List<OProperty<?>> addressPropList = new ArrayList<OProperty<?>>();
+        addressPropList.add(addressCollProperty);
+        OComplexObject addressDetails = OComplexObjects.create(EdmComplexType.newBuilder().build(), addressPropList);
+        OCollection<?> addressColl = OCollections.newBuilder(null).add(addressDetails).build();        
+        
+        OProperty<?> contactCollectionProp =  OProperties.collection("source_Contact", null, addressColl);
+        List<OProperty<?>> contactPropList = new ArrayList<OProperty<?>>();
+        contactPropList.add(contactCollectionProp);       
+        List<EntityResource<Object>> entities = new ArrayList<EntityResource<Object>>();
+        entities.add(new EntityResource<Object>(OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null)));
+        
+        ResourceStateMachine rsm = new ResourceStateMachine(customerState, getOEntityTransformer(addressColl));
+        MultivaluedMap<String, String> pathParameters = new MultivaluedMapImpl<String>();
+        CollectionResource<Object> collectionResource = new CollectionResource<Object>(entities);
+        HTTPHypermediaRIM rimHandler = mockRIMHandler(rsm);
+        HttpHeaders headers = mock(HttpHeaders.class);      
+        Metadata metadata = mock(Metadata.class);        
+        @SuppressWarnings("unchecked")
+        Collection<Link> collectionLinks = rsm.injectLinks(rimHandler, new InteractionContext(mock(UriInfo.class), mock(HttpHeaders.class), pathParameters, mock(MultivaluedMap.class), customerState, mock(Metadata.class)), collectionResource, headers, metadata);
+
+        assertNotNull(collectionLinks);
+        assertFalse(collectionLinks.isEmpty());
+        assertEquals(1, collectionLinks.size());
+
+        Collection<Link> links = entities.get(0).getLinks();
+        assertNotNull(links);
+        assertFalse(links.isEmpty());
+        
+        // sort the links so we have a predictable order for this test
+        List<Link> sortedLinks = new ArrayList<Link>();
+        sortedLinks.addAll(links);
+        Collections.sort(sortedLinks, new Comparator<Link>() {
+            @Override
+            public int compare(Link o1, Link o2) {
+                return o1.getSourceEntityValue().compareTo(o2.getSourceEntityValue());
+            }            
+        });
+        
+        assertEquals("/baseuri/contact()?filter=Id+eq+'ABCD'", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+'EFGH'", sortedLinks.get(1).getHref());        
+        assertEquals(2, links.size());
+    }
+    
+    @Test
+    public void testInjectLinksForEachCollectionResourceMultiParams()
+    {
+        CollectionResourceState customerState = new CollectionResourceState("customer", "customer", new ArrayList<Action>(), "/customer()", null, null);
+        CollectionResourceState contactState = new CollectionResourceState("contact", "contact", new ArrayList<Action>(), "/contact()", null, null);
+
+        Map<String, String> uriLinkage = new HashMap<String, String>();
+        uriLinkage.put("filter", "Name eq {personName} and Id eq '{Contact.Email}'");
+        customerState.addTransition(new Transition.Builder().method("GET").target(contactState).uriParameters(uriLinkage).flags(Transition.FOR_EACH).build());
+        
+        OCollection<?> contactColl = OCollections.newBuilder(null).add(createComplexObject("Email","johnEmailAddr","Tel","12345")).add(createComplexObject("Email","smithEmailAddr","Tel","66778")).build();        
+        OProperty<?> contactProp =  OProperties.collection("source_Contact", null, contactColl);
+        List<OProperty<?>> contactPropList = new ArrayList<OProperty<?>>();
+        contactPropList.add(contactProp);
+        
+        List<EntityResource<Object>> entities = new ArrayList<EntityResource<Object>>();
+        OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
+        entities.add(new EntityResource<Object>(entity));
+                
+        ResourceStateMachine rsm = new ResourceStateMachine(customerState, getOEntityTransformer(contactColl));
+        CollectionResource<Object> collectionResource = new CollectionResource<Object>(entities);
+        HTTPHypermediaRIM rimHandler = mockRIMHandler(rsm);
+        HttpHeaders headers = mock(HttpHeaders.class);      
+        Metadata metadata = mock(Metadata.class);  
+        MultivaluedMap<String, String> pathParameters = new MultivaluedMapImpl<String>();
+        pathParameters.add("personName", "John");
+        @SuppressWarnings("unchecked")
+        Collection<Link> collectionLinks = rsm.injectLinks(rimHandler, new InteractionContext(mock(UriInfo.class), mock(HttpHeaders.class), pathParameters, mock(MultivaluedMap.class), customerState, mock(Metadata.class)), collectionResource, headers, metadata);
+
+        assertNotNull(collectionLinks);
+        assertFalse(collectionLinks.isEmpty());
+        assertEquals(1, collectionLinks.size());
+
+        Collection<Link> links = entities.get(0).getLinks();
+        assertNotNull(links);
+        assertFalse(links.isEmpty());
+        
+        // sort the links so we have a predictable order for this test
+        List<Link> sortedLinks = new ArrayList<Link>();
+        sortedLinks.addAll(links);
+        Collections.sort(sortedLinks, new Comparator<Link>() {
+            @Override
+            public int compare(Link o1, Link o2) {
+                return o1.getSourceEntityValue().compareTo(o2.getSourceEntityValue());
+            }            
+        });
+        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+'johnEmailAddr'", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+'smithEmailAddr'", sortedLinks.get(1).getHref());
+        assertEquals(2, links.size());
+    } 
+    
+    private OComplexObject createComplexObject(String... values)
+    {
+        List<OProperty<?>> propertyList = new ArrayList<OProperty<?>>();        
+        for(int i=0; i<values.length; i+=2)
+        {
+            OProperty<String> property = OProperties.string(values[i], values[i+1]);
+            propertyList.add(property);
+        }        
+        OComplexObject complexObj = OComplexObjects.create(EdmComplexType.newBuilder().build(),propertyList);        
+        return complexObj;
+    }
+    
+    private Transformer getOEntityTransformer(OCollection<?> collection)
+    {
+        Map<String, Object> entityProperties = new HashMap<String, Object>();
+        entityProperties.put("source_Contact", collection);
+        Transformer transformerMock = mock(Transformer.class);
+        when(transformerMock.transform(anyObject())).thenReturn(entityProperties);
+        return transformerMock;
     }
 }

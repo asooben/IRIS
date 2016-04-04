@@ -516,6 +516,29 @@ public class TestODataLinkInterceptor {
 		Link result = linkInterceptor.addingLink(mock(RESTResource.class), new Link(t, t.getTarget().getRel(), "/FundsTransfers()?$filter=DebitAcctNo eq '123'", HttpMethod.GET));
 		assertEquals("http://schemas.microsoft.com/ado/2007/08/dataservices/related/FundsTransfers", result.getRel());
 	}
+	
+	@Test
+	public void testLinkWithSourceEntityValuePresent()
+	{
+	    Transition t = createMockTransition(
+                createMockResourceState("FundsTransfersIAuth", "FundsTransfer", true), 
+                createMockResourceState("FundsTransfersIHold", "FundsTransfer", true));
+
+        ODataLinkInterceptor linkInterceptor = new ODataLinkInterceptor(createMockProviderFundsTransfers());
+        Link result = linkInterceptor.addingLink(mock(RESTResource.class), new Link(t, t.getTarget().getRel(), "/FundsTransfers()?$filter=DebitAcctNo eq '123'", HttpMethod.GET, "ABCD"));
+        assertEquals("http://schemas.microsoft.com/ado/2007/08/dataservices/related/FundsTransfer_ABCD/FundsTransfers", result.getRel());	            
+	}
+	
+	@Test
+    public void testLinkWithSourceEntityValueSetToNull() {
+        Transition t = createMockTransition(
+                createMockResourceState("FundsTransfersIAuth", "FundsTransfer", true), 
+                createMockResourceState("FundsTransfersIHold", "FundsTransfer", true));
+
+        ODataLinkInterceptor linkInterceptor = new ODataLinkInterceptor(createMockProviderFundsTransfers());
+        Link result = linkInterceptor.addingLink(mock(RESTResource.class), new Link(t, t.getTarget().getRel(), "/FundsTransfers()?$filter=DebitAcctNo eq '123'", HttpMethod.GET, null));
+        assertEquals("http://schemas.microsoft.com/ado/2007/08/dataservices/related/FundsTransfers", result.getRel());
+    }
 
 	private ResourceState createMockResourceState(String name, String entityName, boolean isCollection) {
 		ResourceState state = null;
