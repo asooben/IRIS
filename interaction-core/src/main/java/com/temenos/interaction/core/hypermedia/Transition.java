@@ -136,6 +136,11 @@ public class Transition {
 				&& source instanceof CollectionResourceState
 				&& (target instanceof ResourceState && !(target instanceof CollectionResourceState));
 	}
+
+	public String extractCollectionParamFromURI() {
+		Map<String, String> transitionUriMap = getCommand().getUriParameters();
+		return getCollectionParam(transitionUriMap); //Getting multivalue drill-down from transition if it exists
+	}
 	
 	/**
 	 * @return the locator
@@ -276,6 +281,55 @@ public class Transition {
 		// this one's a bit special
 		this.command = new TransitionCommandSpec(method,
 				flags, evaluation, uriParameters, linkId);
-	}	
-	
+	}
+
+	/**
+	 * Retrieve a collection parameter name (if it exists) from the URI map of a transition.
+	 * @param transitionUriMap
+	 * @return
+	 */
+	private String getCollectionParam(Map<String, String> transitionUriMap)
+	{
+		if(transitionUriMap==null)
+		{
+			return null;
+		}
+
+		//Transition contains mv group if there exists a value within curly braces having a dot
+		//Assuming we have only one mv group per parameter list / transition
+		String collectionParamName = null;
+		for (Map.Entry<String, String> entry : transitionUriMap.entrySet()) {
+			String entryValue = entry.getValue();
+			collectionParamName = extractCollectionParamName(entryValue);
+			break;
+		}
+		return collectionParamName;
+	}
+
+	/**
+	 * Extract an collection parameter name from a string URI param.
+	 * It should have format {mvGroup.value}
+	 * @param transitionUriValue
+	 * @return
+	 */
+	private String extractCollectionParamName(String transitionUriValue)
+	{
+		if(transitionUriValue.contains("{") && transitionUriValue.contains("}"))
+		{
+			int indexOfLeftBrace = transitionUriValue.indexOf("{");
+			int indexOfRightBrace = transitionUriValue.indexOf("}");
+			String parameter = transitionUriValue.substring(indexOfLeftBrace+1, indexOfRightBrace);
+			if(parameter.contains("."))
+			{
+				return parameter;
+			}
+			else if(indexOfRightBrace == transitionUriValue.length()-1) //End of string
+			{
+				return null;
+			}
+			return extractCollectionParamName(transitionUriValue.substring(indexOfRightBrace+1));
+		}
+		return null;
+	}
+
 }

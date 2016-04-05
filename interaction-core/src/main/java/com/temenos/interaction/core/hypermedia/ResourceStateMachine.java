@@ -44,6 +44,8 @@ import javax.ws.rs.core.Response.Status.Family;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
+import com.temenos.interaction.core.hypermedia.link.LinkGenerator;
+import com.temenos.interaction.core.hypermedia.link.MultiLinkGenerator;
 import org.odata4j.core.OEntity;
 import org.odata4j.core.OEntityKey;
 import org.slf4j.Logger;
@@ -933,7 +935,10 @@ public class ResourceStateMachine {
 		// add link to GET 'self'
 		if (selfTransition == null)
 			selfTransition = state.getSelfTransition();
-		links.add(createSelfLink(selfTransition, entity, resourceProperties));
+		LinkGenerator selfLinkGenerator = new LinkGenerator(this, selfTransition, entity);
+		Map<String, Object> selfTransitionProperties = getTransitionProperties(
+				selfTransition, entity, resourceProperties, null);
+		links.addAll(selfLinkGenerator.createLink(selfTransitionProperties, null, null));
 
 		/*
 		 * Add links to other application states (resources)
@@ -959,37 +964,29 @@ public class ResourceStateMachine {
 			if (cs.isForEach() || cs.isEmbeddedForEach()) {
 				if (collectionResource != null) {
 					for (EntityResource<?> er : collectionResource.getEntities()) {
+						LinkGenerator linkGenerator;
 						Collection<Link> eLinks = er.getLinks();
 						if (eLinks == null) {
 							eLinks = new ArrayList<Link>();
 						}						
 						
-						Map<String, String> transitionUriMap = transition.getCommand().getUriParameters();
-						String mvGroupParam = getMvGroup(transitionUriMap); //Getting multivalue drill-down from transition if it exists						
+						String mvGroupParam = transition.extractCollectionParamFromURI();
 						if(mvGroupParam!=null) //Transition contains a multivalue drilldown uri
 						{
-						    createLinkForMultivalue(transition, er, resourceProperties, mvGroupParam, rimHander, ctx, eLinks);
+						    linkGenerator = new MultiLinkGenerator(this, transition, er.getEntity(), mvGroupParam);
 						}
 						else
 						{
-						    Link link = createLink(transition, er.getEntity(), resourceProperties);
-	                        if (link != null) {
-	                            boolean addLink = true;
-	                            // evaluate the conditional expression
-	                            Expression conditionalExp = transition.getCommand().getEvaluation();
-	                            if (conditionalExp != null) {
-	                                try{
-	                                    addLink = conditionalExp.evaluate(rimHander, ctx, er.clone());
-	                                }catch(CloneNotSupportedException cnse){ //not thrown, but added to support clone design contract
-	                                    throw new RuntimeException("Failed to clone EntityResource", cnse);
-	                                }
-	                            }
-	                            if (addLink) {
-	                                eLinks.add(link);
-	                            }
-	                        }
+						    linkGenerator = new LinkGenerator(this, transition, er.getEntity());
 						}
-						
+
+						Map<String, Object> transitionProperties = getTransitionProperties(
+								transition, er.getEntity(), resourceProperties, null);
+						Collection<Link> generatedLinks = linkGenerator.createLink(transitionProperties, null, ctx);
+						if (addLink(transition, ctx, er, rimHander)) {
+							eLinks.addAll(generatedLinks);
+						}
+
 						er.setLinks(eLinks);
 
                         if (cs.isEmbeddedForEach()) {
@@ -1033,27 +1030,15 @@ public class ResourceStateMachine {
 				}
 			} else {
 				boolean addLink = true;
-				// evaluate the conditional expression
-				Expression conditionalExp = cs.getEvaluation();
-				if (conditionalExp != null) {
-					EntityResource<?> entityResource = null;
-
-                    if (ctx.getResource() instanceof EntityResource<?>) {
-						try{
-							entityResource = ((EntityResource<?>) ctx.getResource()).clone();
-						}catch(CloneNotSupportedException cnse){ //not thrown, but added to support clone design contract
-							throw new RuntimeException("Failed to clone EntityResource", cnse);
-						}
-					}
-					
-					addLink = conditionalExp.evaluate(rimHander, ctx, entityResource);
+				if (ctx.getResource() instanceof EntityResource<?>) {
+					EntityResource<?> entityResource = ((EntityResource<?>) ctx.getResource());
+					addLink = addLink(transition, ctx, entityResource, rimHander);
 				}
-
 				if (addLink) {
-                    Map<String, Object> transitionProperties = getTransitionProperties(transition, entity,
-                            resourceProperties, null);
-
-					links.add(createLink(transition, transitionProperties, entity, null, false, ctx));
+                    Map<String, Object> transitionProperties = getTransitionProperties(
+							transition, entity, resourceProperties, null);
+					LinkGenerator linkGenerator = new LinkGenerator(this, transition, entity);
+					links.addAll(linkGenerator.createLink(transitionProperties, null, ctx));
 				}
 			}
 		}
@@ -1172,7 +1157,11 @@ public class ResourceStateMachine {
 			for (String related : relationships) {
 				Transition transition = getTransitionsById().get(related);
 				if (transition != null) {
-					target = createLink(transition, resourceEntity, pathParameters);
+					LinkGenerator linkGenerator = new LinkGenerator(this, transition, resourceEntity);
+					Map<String, Object> transitionProperties = getTransitionProperties(
+							transition, resourceEntity, pathParameters, null);
+					Collection<Link> links = linkGenerator.createLink(transitionProperties, null, null);
+					target = (!links.isEmpty()) ? links.iterator().next() : null;
 				}
 			}
 		}
@@ -1207,52 +1196,16 @@ public class ResourceStateMachine {
 			if (method.contains(transition.getCommand().getMethod())) {
 				// do not create link if this a pseudo state, effectively no
 				// state
-				if (!transition.getTarget().isPseudoState())
-					target = createLink(transition, resourceEntity, pathParameters);
+				if (!transition.getTarget().isPseudoState()) {
+					LinkGenerator linkGenerator = new LinkGenerator(this, transition, resourceEntity);
+					Map<String, Object> transitionProperties = getTransitionProperties(
+							transition, resourceEntity, pathParameters, null);
+					Collection<Link> links = linkGenerator.createLink(transitionProperties, null, null);
+					target = (!links.isEmpty()) ? links.iterator().next() : null;
+				}
 			}
 		}
 		return target;
-	}
-
-	/*
-	 * @precondition {@link RequestContext} must have been initialised
-	 */
-	private Link createSelfLink(Transition transition, Object entity, MultivaluedMap<String, String> pathParameters) {
-		return createLink(transition, entity, pathParameters, null, false);
-	}
-
-	/*
-	 * Create a Link using the supplied transition, entity and path parameters
-	 * 
-	 * @param resourcePath uri template resource path
-	 * 
-	 * @param transition transition
-	 * 
-	 * @param entity entity
-	 * 
-	 * @param map path parameters
-	 * 
-	 * @return link
-	 */
-	public Link createLink(Transition transition, Object entity, MultivaluedMap<String, String> transitionParameters) {
-		return createLink(transition, entity, transitionParameters, null);
-	}
-
-	public Link createLink(Transition transition, Object entity, MultivaluedMap<String, String> transitionParameters,
-			MultivaluedMap<String, String> queryParameters) {
-		return createLink(transition, entity, transitionParameters, queryParameters, false);
-	}	
-
-	public Link createLink(Transition transition, Object entity, MultivaluedMap<String, String> transitionParameters,
-			MultivaluedMap<String, String> queryParameters, boolean allQueryParameters) {
-		Map<String, Object> transitionProperties = getTransitionProperties(transition, entity, transitionParameters,
-				queryParameters);
-		return createLink(transition, transitionProperties, entity, queryParameters, allQueryParameters, null);
-	}
-	
-	private Link createLink(Transition transition, Map<String, Object> transitionProperties, Object entity,
-            MultivaluedMap<String, String> queryParameters, boolean allQueryParameters, InteractionContext ctx) {	    
-	    return createLink(transition, transitionProperties, entity, queryParameters, allQueryParameters, ctx, null);
 	}
 
     public ResourceStateAndParameters resolveDynamicState(DynamicResourceState dynamicResourceState,
@@ -1303,234 +1256,6 @@ public class ResourceStateMachine {
 
 		return result;
 
-	}
-
-	/*
-	 * Create a link using the supplied transition, entity and transition
-	 * properties. This method is intended for re-using transition properties
-	 * (path params, link params and entity properties).
-	 * 
-	 * @param linkTemplate uri template
-	 * 
-	 * @param transition transition
-	 * 
-	 * @param transitionProperties transition properties
-	 * 
-	 * @param entity entity
-	 * 
-	 * @param sourceEntityValue Replacement uri value for transition having multivalue drilldown. Otherwise null.
-	 * 
-	 * @return link
-	 * 
-	 * @precondition {@link RequestContext} must have been initialised
-	 */
-	private Link createLink(Transition transition, Map<String, Object> transitionProperties, Object entity,
-			MultivaluedMap<String, String> queryParameters, boolean allQueryParameters, InteractionContext ctx, String sourceEntityValue) {
-		assert (RequestContext.getRequestContext() != null);
-
-		try {
-			ResourceState targetState = transition.getTarget();
-
-			if (targetState instanceof LazyResourceState || targetState instanceof LazyCollectionResourceState) {
-				targetState = resourceStateProvider.getResourceState(targetState.getName());
-			}
-
-			if (targetState != null) {
-				for (Transition tmpTransition : targetState.getTransitions()) {
-                    if (tmpTransition.isType(Transition.EMBEDDED)) {
-						if (tmpTransition.getTarget() instanceof LazyResourceState
-                                || tmpTransition.getTarget() instanceof LazyCollectionResourceState) {
-                            if (tmpTransition.getTarget() != null) {
-                                ResourceState tt = resourceStateProvider.getResourceState(tmpTransition.getTarget()
-                                        .getName());
-								if (tt == null) {
-									logger.error("Invalid transition [" + tmpTransition.getId() + "]");
-								}
-								tmpTransition.setTarget(tt);
-							}
-				}
-                    }
-                }
-
-                // Target can have errorState which is not a normal transition,
-                // so resolve and add it here
-				if (targetState.getErrorState() != null) {
-					ResourceState errorState = targetState.getErrorState();
-                    if ((errorState instanceof LazyResourceState || errorState instanceof LazyCollectionResourceState)
-                            && errorState.getId().startsWith(".")) {
-                        // We should resolve and overwrite the one already there
-						errorState = resourceStateProvider.getResourceState(errorState.getName());
-						targetState.setErrorState(errorState);
-					}
-				}
-			}
-
-			if (targetState == null) {
-				// a dead link, target could not be found
-				logger.error("Dead link to [" + transition.getId() + "]");
-
-				return null;
-			}
-
-			UriBuilder linkTemplate = UriBuilder.fromUri(RequestContext.getRequestContext().getBasePath());
-
-			// Add any query parameters set by the command to the response
-            if (ctx != null) {
-                Map<String, String> outQueryParams = ctx.getOutQueryParameters();
-
-                for (Map.Entry<String, String> param : outQueryParams.entrySet()) {
-                    linkTemplate.queryParam(param.getKey(), param.getValue());
-				}
-			}
-
-            TransitionCommandSpec cs = transition.getCommand();
-			String method = cs.getMethod();
-
-			URI href;
-			String rel = "";
-
-			if (targetState instanceof DynamicResourceState) {
-				// We are dealing with a dynamic target
-
-				// Identify real target state
-                ResourceStateAndParameters stateAndParams = resolveDynamicState((DynamicResourceState) targetState,
-                        transitionProperties, ctx);
-
-                if (stateAndParams.getState() == null) {
-					// Bail out as we failed to resolve resource
-					return null;
-				} else {
-					targetState = stateAndParams.getState();
-				}
-
-				if (targetState.getRel().contains("http://temenostech.temenos.com/rels/new")) {
-					method = "POST";
-                }
-
-				rel = configureLink(linkTemplate, transition, transitionProperties, targetState, sourceEntityValue);
-				
-                if ("item".equals(rel) || "collection".equals(rel)) {
-                    rel = createLinkForState(targetState);
-                }
-                if (stateAndParams.getParams() != null) {
-                    // Add query parameters
-					for (ParameterAndValue paramAndValue : stateAndParams.getParams()) {
-					    String param = paramAndValue.getParameter();
-					    String value = paramAndValue.getValue();
-					                            
-                        if("id".equalsIgnoreCase(param)) {
-                            transitionProperties.put(param, value);
-                        } else {
-                            linkTemplate.queryParam(param, value);
-                        }
-					}
-				}
-                // Links in the transition properties are already encoded so 
-                // build the href using encoded map.
-                href = linkTemplate.buildFromEncodedMap(transitionProperties);
-			} else {
-				// We are NOT dealing with a dynamic target
-
-				rel = configureLink(linkTemplate, transition, transitionProperties, targetState, sourceEntityValue);
-
-				// Pass any query parameters
-                addQueryParams(queryParameters, allQueryParameters, linkTemplate, targetState.getPath(), transition
-                        .getCommand().getUriParameters());
-
-				// Build href from template
-				if (entity != null && transformer == null) {
-					logger.debug("Building link with entity (No Transformer) [" + entity + "] [" + transition + "]");
-					href = linkTemplate.build(entity);
-                } else {
-                    // Links in the transition properties are already encoded so 
-                    // build the href using encoded map.
-                     href = linkTemplate.buildFromEncodedMap(transitionProperties);
-			}
-            }
-
-			// Create the link
-			Link link;
-			
-			if(transitionProperties.containsKey("profileOEntity") && "self".equals(rel) && entity instanceof OEntity) {
-					//Create link adding profile to href to be resolved later on AtomXMLProvider
-					link = new Link(transition, rel, href.toASCIIString()+"#@"+createLinkForProfile(transition), method);
-			} else {
-					//Create link as normal behaviour
-					link = new Link(transition, rel, href.toASCIIString(), method, sourceEntityValue);
-			}
-			
-			logger.debug("Created link for transition [" + transition + "] [title=" + transition.getId() + ", rel="
-					+ rel + ", method=" + method + ", href=" + href.toString() + "(ASCII=" + href.toASCIIString()
-					+ ")]");
-			return link;
-		} catch (IllegalArgumentException e) {
-			logger.warn("Dead link [" + transition + "]", e);
-
-			return null;
-
-		} catch (UriBuilderException e) {
-			logger.error("Dead link [" + transition + "]", e);
-			throw e;
-		}
-	}
-	
-	private String createLinkForProfile (Transition transition) {
-	    
-	    return transition.getLabel() != null
-                && !transition.getLabel().equals("") ? transition.getLabel()
-                : transition.getTarget().getName();
-	}
-
-	private String createLinkForState( ResourceState targetState){
-	    StringBuilder rel = new StringBuilder("http://schemas.microsoft.com/ado/2007/08/dataservices/related/");
-	    rel.append(targetState.getName());
-	
-	    return  rel.toString();
-	}
-	
-    private String configureLink(UriBuilder linkTemplate, Transition transition,
-            Map<String, Object> transitionProperties, ResourceState targetState, String sourceEntityValue) {
-		String targetResourcePath = targetState.getPath();
-		linkTemplate.path(targetResourcePath);
-
-		String rel = targetState.getRel();
-
-		if (transition.getSource() == targetState) {
-			rel = "self";
-        }
-
-		// Pass uri parameters as query parameters if they are not
-		// replaceable in the path, and replace any token.
-
-		Map<String, String> uriParameters = transition.getCommand().getUriParameters();
-		if (uriParameters != null) {
-			for (String key : uriParameters.keySet()) {
-				String value = uriParameters.get(key);
-				
-				if(sourceEntityValue!=null && value.contains(sourceEntityValue.replaceAll("[()0-9]", "")))
-				{
-				    value = value.replace(sourceEntityValue.replaceAll("[()0-9]", ""), sourceEntityValue);
-				}
-				
-				if (!targetResourcePath.contains("{" + key + "}")) {
-					linkTemplate.queryParam(key, HypermediaTemplateHelper.templateReplace(value, transitionProperties));
-				}
-			}
-		}
-
-		return rel;
-	}
-
-    private void addQueryParams(MultivaluedMap<String, String> queryParameters, boolean allQueryParameters,
-				UriBuilder linkTemplate, String targetResourcePath, Map<String, String> uriParameters) {
-		if (queryParameters != null && allQueryParameters) {
-			for (String param : queryParameters.keySet()) {
-                if (!targetResourcePath.contains("{" + param + "}")
-                        && (uriParameters == null || !uriParameters.containsKey(param))) {
-					linkTemplate.queryParam(param, queryParameters.getFirst(param));
-				}
-			}
-		}
 	}
 
 	/**
@@ -1731,96 +1456,20 @@ public class ResourceStateMachine {
 		build();
 	}   
     
-	/**
-	 * Retrieve an mv group (if it exists) from the URI map of a transition.
-	 * @param transitionUriMap
-	 * @return
-	 */
-    private String getMvGroup(Map<String, String> transitionUriMap)
-    {    
-        if(transitionUriMap==null)
-        {
-            return null;
-        }
-        
-        //Transition contains mv group if there exists a value within curly braces having a dot
-        //Assuming we have only one mv group per parameter list / transition
-        String mvGroup = null;
-        for (Map.Entry<String, String> entry : transitionUriMap.entrySet()) {
-            String entryValue = entry.getValue();
-            mvGroup = extractMvGroup(entryValue);
-            break;
-        }
-        return mvGroup;
-    }
-    
-    /**
-     * Extract an MV group name from a string URI param.
-     * It should have format {mvGroup.value}
-     * @param transitionUriValue
-     * @return
-     */
-    private String extractMvGroup(String transitionUriValue)
-    {
-        if(transitionUriValue.contains("{") && transitionUriValue.contains("}"))
-        {
-            int indexOfLeftBrace = transitionUriValue.indexOf("{");
-            int indexOfRightBrace = transitionUriValue.indexOf("}");
-            String parameter = transitionUriValue.substring(indexOfLeftBrace+1, indexOfRightBrace);            
-            if(parameter.contains("."))
-            {
-                return parameter;
-            }
-            else if(indexOfRightBrace == transitionUriValue.length()-1) //End of string
-            {
-                return null;
-            }
-            return extractMvGroup(transitionUriValue.substring(indexOfRightBrace+1));           
-        }
-        return null;
-    }
-    
-    /**
-     * Create as many links as we have elements for a particular Mv group.
-     * @param transition
-     * @param er
-     * @param resourceProperties
-     * @param mvGroupParam
-     * @param rimHander
-     * @param ctx
-     * @param eLinks
-     */
-    private void createLinkForMultivalue(Transition transition, EntityResource<?> er, MultivaluedMap<String, String> resourceProperties, String mvGroupParam
-            ,HTTPHypermediaRIM rimHander, InteractionContext ctx, Collection<Link> eLinks)
-    {
-        Map<String, Object> transitionProperties = getTransitionProperties(transition, er.getEntity(), resourceProperties, null);
-        Map<String, Object> normalizedProperties = HypermediaTemplateHelper.normalizeProperties(transitionProperties);                          
-        
-        Iterator<Entry<String,Object>> entryItr = normalizedProperties.entrySet().iterator();
-        while(entryItr.hasNext())
-        {
-            Entry<String,Object> entry = entryItr.next();
-            String entryKey = entry.getKey();
-            if(mvGroupParam.equals(entryKey.replaceAll("[()0-9]", "")))
-            {                                   
-                Link link = createLink(transition, transitionProperties, er.getEntity(), null, false, null, entryKey); //No query parameter                              
-                
-                if (link != null) {
-                    boolean addLink = true;
-                    // evaluate the conditional expression
-                    Expression conditionalExp = transition.getCommand().getEvaluation();
-                    if (conditionalExp != null) {
-                        try{
-                            addLink = conditionalExp.evaluate(rimHander, ctx, er.clone());
-                        }catch(CloneNotSupportedException cnse){ //not thrown, but added to support clone design contract
-                            throw new RuntimeException("Failed to clone EntityResource", cnse);
-                        }
-                    }
-                    if (addLink) {
-                        eLinks.add(link);
-                    }
-                }
-            }
-        }
-    }
+	private boolean addLink(Transition transition, InteractionContext ctx, EntityResource<?> er,
+			HTTPHypermediaRIM rimHander) {
+		boolean addLink = true;
+		// evaluate the conditional expression
+		Expression conditionalExp = transition.getCommand().getEvaluation();
+		if (conditionalExp != null) {
+			try{
+				addLink = conditionalExp.evaluate(rimHander, ctx, er.clone());
+			}catch(CloneNotSupportedException cnse){ //not thrown, but added to support clone design contract
+				throw new RuntimeException("Failed to clone EntityResource", cnse);
+			}
+		}
+		return addLink;
+	}
+
+
 }
