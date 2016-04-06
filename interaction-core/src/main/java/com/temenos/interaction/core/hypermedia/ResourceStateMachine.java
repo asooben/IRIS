@@ -1029,12 +1029,11 @@ public class ResourceStateMachine {
 					}
 				}
 			} else {
-				boolean addLink = true;
+				EntityResource<?> entityResource = null;
 				if (ctx.getResource() instanceof EntityResource<?>) {
-					EntityResource<?> entityResource = ((EntityResource<?>) ctx.getResource());
-					addLink = addLink(transition, ctx, entityResource, rimHander);
+					entityResource = ((EntityResource<?>) ctx.getResource());
 				}
-				if (addLink) {
+				if (addLink(transition, ctx, entityResource, rimHander)) {
                     Map<String, Object> transitionProperties = getTransitionProperties(
 							transition, entity, resourceProperties, null);
 					LinkGenerator linkGenerator = new LinkGenerator(this, transition, entity);
@@ -1463,7 +1462,7 @@ public class ResourceStateMachine {
 		Expression conditionalExp = transition.getCommand().getEvaluation();
 		if (conditionalExp != null) {
 			try{
-				addLink = conditionalExp.evaluate(rimHander, ctx, er.clone());
+				addLink = conditionalExp.evaluate(rimHander, ctx, (er != null) ? er.clone() : null);
 			}catch(CloneNotSupportedException cnse){ //not thrown, but added to support clone design contract
 				throw new RuntimeException("Failed to clone EntityResource", cnse);
 			}

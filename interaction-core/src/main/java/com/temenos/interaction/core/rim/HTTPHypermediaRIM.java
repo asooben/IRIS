@@ -592,7 +592,7 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 				Transition redirectTransition = targetState.getRedirectTransition();
 
 				Map<String, Object> transitionProperties = hypermediaEngine.getTransitionProperties(
-						redirectTransition, entity, pathParameters, null);
+						redirectTransition, entity, pathParameters, ctx.getQueryParameters());
 				LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, redirectTransition, entity);
 				linkGenerator.setAllQueryParameters(true);
 				Collection<Link> links = linkGenerator.createLink(transitionProperties, ctx.getQueryParameters(), null);
