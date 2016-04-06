@@ -591,11 +591,9 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 				ResourceState targetState = ctx.getTargetState();
 				Transition redirectTransition = targetState.getRedirectTransition();
 
-				Map<String, Object> transitionProperties = hypermediaEngine.getTransitionProperties(
-						redirectTransition, entity, pathParameters, ctx.getQueryParameters());
 				LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, redirectTransition, entity);
 				linkGenerator.setAllQueryParameters(true);
-				Collection<Link> links = linkGenerator.createLink(transitionProperties, ctx.getQueryParameters(), null);
+				Collection<Link> links = linkGenerator.createLink(pathParameters, ctx.getQueryParameters(), null);
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 			}
@@ -610,10 +608,8 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");				
 				assert(resource instanceof EntityResource) : "Must be an EntityResource as we have created a new resource";
 
-				Map<String, Object> transitionProperties = hypermediaEngine.getTransitionProperties(
-						autoTransition, ((EntityResource<?>)resource).getEntity(), pathParameters, null);
 				LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
-				Collection<Link> links = linkGenerator.createLink(transitionProperties, null, null);
+				Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 				Response autoResponse = getResource(headers, autoTransition, ctx);
@@ -646,10 +642,8 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					if (autoTransitions.size() > 1)
 						logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");
 
-					Map<String, Object> transitionProperties = hypermediaEngine.getTransitionProperties(
-							autoTransition, ((EntityResource<?>)resource).getEntity(), pathParameters, null);
 					LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
-					Collection<Link> links = linkGenerator.createLink(transitionProperties, null, null);
+					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 					Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 					responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 					Response autoResponse = getResource(headers, autoTransition, ctx);

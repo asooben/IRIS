@@ -27,9 +27,15 @@ public class MultiLinkGenerator extends LinkGenerator {
     }
 
     @Override
-    public Collection<Link> createLink(Map<String, Object> transitionProperties,
+    public Collection<Link> createLink(MultivaluedMap<String, String> pathParameters,
             MultivaluedMap<String, String> queryParameters, InteractionContext ctx) {
         Collection<Link> eLinks = new ArrayList<Link>();
+        Map<String, Object> transitionProperties = resourceStateMachine.getTransitionProperties(
+                transition,
+                entity,
+                pathParameters,
+                queryParameters
+        );
         Map<String, Object> normalizedProperties = HypermediaTemplateHelper.normalizeProperties(transitionProperties);
 
         Iterator<Map.Entry<String,Object>> entryItr = normalizedProperties.entrySet().iterator();

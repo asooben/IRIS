@@ -23,9 +23,9 @@ public class LinkGenerator {
 
     private final Logger logger = LoggerFactory.getLogger(LinkGenerator.class);
 
-    private ResourceStateMachine resourceStateMachine;
-    private Transition transition;
-    private Object entity;
+    protected ResourceStateMachine resourceStateMachine;
+    protected Transition transition;
+    protected Object entity;
 
     private boolean allQueryParameters;
 
@@ -44,9 +44,15 @@ public class LinkGenerator {
         this.allQueryParameters = allQueryParameters;
     }
 
-    public Collection<Link> createLink(Map<String, Object> transitionProperties,
+    public Collection<Link> createLink(MultivaluedMap<String, String> pathParameters,
             MultivaluedMap<String, String> queryParameters, InteractionContext ctx) {
         Collection<Link> eLinks = new ArrayList<Link>();
+        Map<String, Object> transitionProperties = resourceStateMachine.getTransitionProperties(
+                transition,
+                entity,
+                pathParameters,
+                queryParameters
+        );
         eLinks.add(createLink(transitionProperties, queryParameters, ctx, null));
         return eLinks;
     }

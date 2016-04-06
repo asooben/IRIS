@@ -116,9 +116,8 @@ public class TestResourceStateMachine {
 		ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class));
 		Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
 			.build();
-		Map<String, Object> tp = engine.getTransitionProperties(t, null, null, null);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
-		Collection<Link> links = linkGenerator.createLink(tp, null, null);
+		Collection<Link> links = linkGenerator.createLink(null, null, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test", result.getHref());
 	}
@@ -129,9 +128,8 @@ public class TestResourceStateMachine {
 		Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test/{noteId}"))
 			.build();
 		Object entity = createTestNote("123");
-		Map<String, Object> tp = engine.getTransitionProperties(t, entity, null, null);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
-		Collection<Link> links = linkGenerator.createLink(tp, null, null);
+		Collection<Link> links = linkGenerator.createLink(null, null, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test/123", result.getHref());
 	}
@@ -146,9 +144,8 @@ public class TestResourceStateMachine {
 			.build();
 
 		Object entity = createTestNote("123");
-		Map<String, Object> tp = engine.getTransitionProperties(t, entity, null, null);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
-		Collection<Link> links = linkGenerator.createLink(tp, null, null);
+		Collection<Link> links = linkGenerator.createLink(null, null, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test?test=123", result.getHref());
 	}
@@ -163,9 +160,8 @@ public class TestResourceStateMachine {
 			.build();
 		MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
 		queryParameters.add("noteId", "123");
-		Map<String, Object> tp = engine.getTransitionProperties(t, null, null, queryParameters);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
-		Collection<Link> links = linkGenerator.createLink(tp, queryParameters, null);
+		Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test?test=123", result.getHref());
 	}
@@ -180,9 +176,8 @@ public class TestResourceStateMachine {
 			.build();
 		MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
 		queryParameters.add("$filter", "123");
-		Map<String, Object> tp = engine.getTransitionProperties(t, null, null, queryParameters);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
-		Collection<Link> links = linkGenerator.createLink(tp, queryParameters, null);
+		Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test?filter=123", result.getHref());
 	}
@@ -194,10 +189,9 @@ public class TestResourceStateMachine {
 			build();
 		MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
 		queryParameters.add("$filter", "123");
-		Map<String, Object> tp = engine.getTransitionProperties(t, null, new MultivaluedMapImpl<String>(), queryParameters);
 		LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
 		linkGenerator.setAllQueryParameters(true);
-		Collection<Link> links = linkGenerator.createLink(tp, queryParameters, null);
+		Collection<Link> links = linkGenerator.createLink(new MultivaluedMapImpl<String>(), queryParameters, null);
 		Link result = (!links.isEmpty()) ? links.iterator().next() : null;
 		assertEquals("/baseuri/test?$filter=123", result.getHref());
 	}
