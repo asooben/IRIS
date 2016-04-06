@@ -201,7 +201,7 @@ public class TestResourceStateMachine {
 		when(target.getPath()).thenReturn(path);
 		return target;
 	}
-	
+
 	/*
 	 * Evaluate custom link relation, via the Link header.  See (see rfc5988)
 	 * We return a Link if the header is set and the @{link Transition} can be found.
