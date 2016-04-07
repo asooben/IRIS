@@ -41,11 +41,9 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.Response.Status.Family;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
 
 import com.temenos.interaction.core.hypermedia.link.LinkGenerator;
-import com.temenos.interaction.core.hypermedia.link.MultiLinkGenerator;
+import com.temenos.interaction.core.hypermedia.link.LinkGeneratorImpl;
 import org.odata4j.core.OEntity;
 import org.odata4j.core.OEntityKey;
 import org.slf4j.Logger;
@@ -935,7 +933,7 @@ public class ResourceStateMachine {
 		// add link to GET 'self'
 		if (selfTransition == null)
 			selfTransition = state.getSelfTransition();
-		LinkGenerator selfLinkGenerator = new LinkGenerator(this, selfTransition, entity);
+		LinkGenerator selfLinkGenerator = new LinkGeneratorImpl(this, selfTransition, entity);
 		links.addAll(selfLinkGenerator.createLink(resourceProperties, null, null));
 
 		/*
@@ -962,23 +960,13 @@ public class ResourceStateMachine {
 			if (cs.isForEach() || cs.isEmbeddedForEach()) {
 				if (collectionResource != null) {
 					for (EntityResource<?> er : collectionResource.getEntities()) {
-						LinkGenerator linkGenerator;
 						Collection<Link> eLinks = er.getLinks();
 						if (eLinks == null) {
 							eLinks = new ArrayList<Link>();
-						}						
-						
-						String mvGroupParam = transition.extractCollectionParamFromURI();
-						if(mvGroupParam!=null) //Transition contains a multivalue drilldown uri
-						{
-						    linkGenerator = new MultiLinkGenerator(this, transition, er.getEntity(), mvGroupParam);
 						}
-						else
-						{
-						    linkGenerator = new LinkGenerator(this, transition, er.getEntity());
-						}
-
+						LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, er.getEntity());
 						Collection<Link> generatedLinks = linkGenerator.createLink(resourceProperties, null, ctx);
+
 						if (addLink(transition, ctx, er, rimHander)) {
 							eLinks.addAll(generatedLinks);
 						}
@@ -1030,7 +1018,7 @@ public class ResourceStateMachine {
 					entityResource = ((EntityResource<?>) ctx.getResource());
 				}
 				if (addLink(transition, ctx, entityResource, rimHander)) {
-					LinkGenerator linkGenerator = new LinkGenerator(this, transition, entity);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, entity);
 					links.addAll(linkGenerator.createLink(resourceProperties, null, ctx));
 				}
 			}
@@ -1150,7 +1138,7 @@ public class ResourceStateMachine {
 			for (String related : relationships) {
 				Transition transition = getTransitionsById().get(related);
 				if (transition != null) {
-					LinkGenerator linkGenerator = new LinkGenerator(this, transition, resourceEntity);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, resourceEntity);
 					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 					target = (!links.isEmpty()) ? links.iterator().next() : null;
 				}
@@ -1188,7 +1176,7 @@ public class ResourceStateMachine {
 				// do not create link if this a pseudo state, effectively no
 				// state
 				if (!transition.getTarget().isPseudoState()) {
-					LinkGenerator linkGenerator = new LinkGenerator(this, transition, resourceEntity);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, resourceEntity);
 					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 					target = (!links.isEmpty()) ? links.iterator().next() : null;
 				}

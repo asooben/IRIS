@@ -46,6 +46,7 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 
 import com.temenos.interaction.core.hypermedia.link.LinkGenerator;
+import com.temenos.interaction.core.hypermedia.link.LinkGeneratorImpl;
 import org.apache.wink.common.model.multipart.InMultiPart;
 import org.apache.wink.common.model.multipart.InPart;
 import org.slf4j.Logger;
@@ -591,8 +592,7 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 				ResourceState targetState = ctx.getTargetState();
 				Transition redirectTransition = targetState.getRedirectTransition();
 
-				LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, redirectTransition, entity);
-				linkGenerator.setAllQueryParameters(true);
+				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, redirectTransition, entity).setAllQueryParameters(true);
 				Collection<Link> links = linkGenerator.createLink(pathParameters, ctx.getQueryParameters(), null);
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
@@ -608,7 +608,7 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");				
 				assert(resource instanceof EntityResource) : "Must be an EntityResource as we have created a new resource";
 
-				LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
+				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
 				Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
@@ -642,7 +642,7 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					if (autoTransitions.size() > 1)
 						logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");
 
-					LinkGenerator linkGenerator = new LinkGenerator(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
 					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
 					Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 					responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());

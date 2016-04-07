@@ -63,6 +63,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 
 import com.temenos.interaction.core.hypermedia.link.LinkGenerator;
+import com.temenos.interaction.core.hypermedia.link.LinkGeneratorImpl;
 import org.custommonkey.xmlunit.Diff;
 import org.custommonkey.xmlunit.DifferenceListener;
 import org.custommonkey.xmlunit.IgnoreTextAndAttributeValuesDifferenceListener;
@@ -1728,7 +1729,7 @@ public class TestAtomXMLProvider {
 
 	private Link createLink(ResourceStateMachine rsm, Transition transition, Object entity,
 			MultivaluedMap<String, String> pathParameters, MultivaluedMap<String, String> queryParameters) {
-		LinkGenerator linkGenerator = new LinkGenerator(rsm, transition, entity);
+		LinkGenerator linkGenerator = new LinkGeneratorImpl(rsm, transition, entity);
 		Collection<Link> links = linkGenerator.createLink(pathParameters, queryParameters, null);
 		return (!links.isEmpty()) ? links.iterator().next() : null;
 	}

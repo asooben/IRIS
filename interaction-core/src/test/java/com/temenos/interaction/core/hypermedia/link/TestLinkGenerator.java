@@ -34,7 +34,7 @@ public class TestLinkGenerator {
         ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class));
         Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
                 .build();
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
         Collection<Link> links = linkGenerator.createLink(null, null, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test", result.getHref());
@@ -46,7 +46,7 @@ public class TestLinkGenerator {
         Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test/{noteId}"))
                 .build();
         Object entity = new TestNote("123");
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
         Collection<Link> links = linkGenerator.createLink(null, null, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test/123", result.getHref());
@@ -62,7 +62,7 @@ public class TestLinkGenerator {
                 .build();
 
         Object entity = new TestNote("123");
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
         Collection<Link> links = linkGenerator.createLink(null, null, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test?test=123", result.getHref());
@@ -78,7 +78,7 @@ public class TestLinkGenerator {
                 .build();
         MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
         queryParameters.add("noteId", "123");
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
         Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test?test=123", result.getHref());
@@ -94,7 +94,7 @@ public class TestLinkGenerator {
                 .build();
         MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
         queryParameters.add("$filter", "123");
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
         Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test?filter=123", result.getHref());
@@ -107,8 +107,7 @@ public class TestLinkGenerator {
                 build();
         MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
         queryParameters.add("$filter", "123");
-        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
-        linkGenerator.setAllQueryParameters(true);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null).setAllQueryParameters(true);
         Collection<Link> links = linkGenerator.createLink(new MultivaluedMapImpl<String>(), queryParameters, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test?$filter=123", result.getHref());
@@ -140,8 +139,7 @@ public class TestLinkGenerator {
                 .thenReturn(resourceStateAndParameters);
         Mockito.when(engineMock.getTransitionProperties(t, null, new MultivaluedMapImpl<String>(), queryParameters)).thenReturn(transitionProperties);
 
-        LinkGenerator linkGenerator = new LinkGenerator(engineMock, t, null);
-        linkGenerator.setAllQueryParameters(true);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engineMock, t, null).setAllQueryParameters(true);
         Collection<Link> links = linkGenerator.createLink(new MultivaluedMapImpl<String>(), queryParameters, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/testDynamic?filter=123&filter2=564", result.getHref());

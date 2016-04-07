@@ -48,7 +48,7 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new MultiLinkGenerator(engine, t, entity, "Contact.Email");
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
         Collection<Link> links = linkGenerator.createLink(null, null, null);
         Iterator<Link> iterator = links.iterator();
 
@@ -89,7 +89,7 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new MultiLinkGenerator(engine, t, entity, "Contact.Address.PostCode");
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
         Collection<Link> links = linkGenerator.createLink(null, null, null);
         Iterator<Link> iterator = links.iterator();
 
@@ -122,7 +122,7 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new MultiLinkGenerator(engine, t, entity, "Contact.Email");
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
         MultivaluedMap<String, String> pathParameters = new MultivaluedMapImpl<String>();
         pathParameters.add("personName", "John");
         Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
