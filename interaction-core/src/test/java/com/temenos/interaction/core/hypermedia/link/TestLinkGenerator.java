@@ -3,6 +3,7 @@ package com.temenos.interaction.core.hypermedia.link;
 import com.temenos.interaction.core.MultivaluedMapImpl;
 import com.temenos.interaction.core.hypermedia.*;
 import com.temenos.interaction.core.web.RequestContext;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -21,9 +22,100 @@ import static org.mockito.Mockito.when;
  */
 public class TestLinkGenerator {
 
+    @Before
+    public void setup() {
+        // initialise the thread local request context with requestUri and baseUri
+        RequestContext ctx = new RequestContext("/baseuri", "/requesturi", null);
+        RequestContext.setRequestContext(ctx);
+    }
+
+    @Test
+    public void testCreateLinkHrefSimple() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class));
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
+                .build();
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test", result.getHref());
+    }
+
+    @Test
+    public void testCreateLinkHrefReplaceUsingEntity() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class), new BeanTransformer());
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test/{noteId}"))
+                .build();
+        Object entity = new TestNote("123");
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
+        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test/123", result.getHref());
+    }
+
+    @Test
+    public void testCreateLinkHrefUriParameterTokensReplaceUsingEntity() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class), new BeanTransformer());
+        Map<String,String> uriParameters = new HashMap<String,String>();
+        uriParameters.put("test", "{noteId}");
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
+                .uriParameters(uriParameters)
+                .build();
+
+        Object entity = new TestNote("123");
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, entity);
+        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test?test=123", result.getHref());
+    }
+
+    @Test
+    public void testCreateLinkHrefUriParameterTokensReplaceQueryParameters() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class), new BeanTransformer());
+        Map<String,String> uriParameters = new HashMap<String,String>();
+        uriParameters.put("test", "{noteId}");
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
+                .uriParameters(uriParameters)
+                .build();
+        MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
+        queryParameters.add("noteId", "123");
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test?test=123", result.getHref());
+    }
+
+    @Test
+    public void testCreateLinkHrefUriParameterTokensReplaceQueryParametersSpecial() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class), new BeanTransformer());
+        Map<String,String> uriParameters = new HashMap<String,String>();
+        uriParameters.put("filter", "{$filter}");
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test"))
+                .uriParameters(uriParameters)
+                .build();
+        MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
+        queryParameters.add("$filter", "123");
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, queryParameters, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test?filter=123", result.getHref());
+    }
+
+    @Test
+    public void testCreateLinkHrefAllQueryParameters() {
+        ResourceStateMachine engine = new ResourceStateMachine(mock(ResourceState.class), new BeanTransformer());
+        Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test")).
+                build();
+        MultivaluedMap<String,String> queryParameters = new MultivaluedMapImpl<String>();
+        queryParameters.add("$filter", "123");
+        LinkGenerator linkGenerator = new LinkGenerator(engine, t, null);
+        linkGenerator.setAllQueryParameters(true);
+        Collection<Link> links = linkGenerator.createLink(new MultivaluedMapImpl<String>(), queryParameters, null);
+        Link result = (!links.isEmpty()) ? links.iterator().next() : null;
+        assertEquals("/baseuri/test?$filter=123", result.getHref());
+    }
+
     @Test
     public void testCreateLinkFromDynamicResource() {
-        RequestContext.setRequestContext(new RequestContext("/test", null, null));
         ResourceStateMachine engineMock = Mockito.mock(ResourceStateMachine.class);
         ResourceStateAndParameters resourceStateAndParameters = new ResourceStateAndParameters();
         resourceStateAndParameters.setState(mockTarget("/testDynamic"));
@@ -52,7 +144,7 @@ public class TestLinkGenerator {
         linkGenerator.setAllQueryParameters(true);
         Collection<Link> links = linkGenerator.createLink(new MultivaluedMapImpl<String>(), queryParameters, null);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
-        assertEquals("/test/testDynamic?filter=123&filter2=564", result.getHref());
+        assertEquals("/baseuri/testDynamic?filter=123&filter2=564", result.getHref());
     }
 
     private ResourceState mockTarget(String path) {
@@ -66,6 +158,18 @@ public class TestLinkGenerator {
         DynamicResourceState target = mock(DynamicResourceState.class);
         when(target.getPath()).thenReturn(path);
         return target;
+    }
+
+    public static class TestNote {
+        String noteId;
+
+        public TestNote(String noteId) {
+            this.noteId = noteId;
+        }
+
+        public String getNoteId() {
+            return noteId;
+        }
     }
 
 }
