@@ -62,7 +62,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
         return eLinks;
     }
 
-    public Collection<Link> createMultiLink(Map<String, Object> transitionProperties,
+    private Collection<Link> createMultiLink(Map<String, Object> transitionProperties,
             MultivaluedMap<String, String> queryParameters, InteractionContext ctx) {
         Collection<Link> eLinks = new ArrayList<Link>();
         Map<String, Object> normalizedProperties = HypermediaTemplateHelper.normalizeProperties(transitionProperties);
