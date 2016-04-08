@@ -26,16 +26,16 @@ public class LinkGeneratorImpl implements LinkGenerator {
 
     private ResourceStateMachine resourceStateMachine;
     private Transition transition;
-    private Object entity;
+    private InteractionContext interactionContext;
     private String collectionName;
 
     private boolean allQueryParameters;
 
     public LinkGeneratorImpl(ResourceStateMachine resourceStateMachine,
-            Transition transition, Object entity) {
+            Transition transition, InteractionContext interactionContext) {
         this.resourceStateMachine = resourceStateMachine;
         this.transition = transition;
-        this.entity = entity;
+        this.interactionContext = interactionContext;
         this.collectionName = transition.extractCollectionParamFromURI();
     }
 
@@ -46,7 +46,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
 
     @Override
     public Collection<Link> createLink(MultivaluedMap<String, String> pathParameters,
-            MultivaluedMap<String, String> queryParameters, InteractionContext ctx) {
+            MultivaluedMap<String, String> queryParameters, Object entity) {
         Collection<Link> eLinks = new ArrayList<Link>();
         Map<String, Object> transitionProperties = resourceStateMachine.getTransitionProperties(
                 transition,
@@ -55,15 +55,15 @@ public class LinkGeneratorImpl implements LinkGenerator {
                 queryParameters
         );
         if (collectionName != null) {
-            eLinks.addAll(createMultiLink(transitionProperties, queryParameters, ctx));
+            eLinks.addAll(createMultiLink(transitionProperties, queryParameters, entity));
         } else {
-            eLinks.add(createLink(transitionProperties, queryParameters, ctx, null));
+            eLinks.add(createLink(transitionProperties, queryParameters, entity, null));
         }
         return eLinks;
     }
 
     private Collection<Link> createMultiLink(Map<String, Object> transitionProperties,
-            MultivaluedMap<String, String> queryParameters, InteractionContext ctx) {
+            MultivaluedMap<String, String> queryParameters, Object entity) {
         Collection<Link> eLinks = new ArrayList<Link>();
         Map<String, Object> normalizedProperties = HypermediaTemplateHelper.normalizeProperties(transitionProperties);
 
@@ -74,7 +74,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
             String entryKey = entry.getKey();
             if(collectionName.equals(entryKey.replaceAll("[()0-9]", "")))
             {
-                Link link = createLink(transitionProperties, queryParameters, ctx, entryKey); //No query parameter
+                Link link = createLink(transitionProperties, queryParameters, entity, entryKey); //No query parameter
 
                 if (link != null) {
                     eLinks.add(link);
@@ -105,7 +105,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
      * @precondition {@link RequestContext} must have been initialised
      */
     protected Link createLink(Map<String, Object> transitionProperties,
-            MultivaluedMap<String, String> queryParameters, InteractionContext ctx, String sourceEntityValue) {
+            MultivaluedMap<String, String> queryParameters, Object entity, String sourceEntityValue) {
         assert (RequestContext.getRequestContext() != null);
         ResourceStateProvider resourceStateProvider = resourceStateMachine.getResourceStateProvider();
         try {
@@ -155,8 +155,8 @@ public class LinkGeneratorImpl implements LinkGenerator {
             UriBuilder linkTemplate = UriBuilder.fromUri(RequestContext.getRequestContext().getBasePath());
 
             // Add any query parameters set by the command to the response
-            if (ctx != null) {
-                Map<String, String> outQueryParams = ctx.getOutQueryParameters();
+            if (interactionContext != null) {
+                Map<String, String> outQueryParams = interactionContext.getOutQueryParameters();
 
                 for (Map.Entry<String, String> param : outQueryParams.entrySet()) {
                     linkTemplate.queryParam(param.getKey(), param.getValue());
@@ -174,7 +174,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
 
                 // Identify real target state
                 ResourceStateAndParameters stateAndParams = resourceStateMachine.resolveDynamicState((DynamicResourceState) targetState,
-                        transitionProperties, ctx);
+                        transitionProperties, interactionContext);
 
                 if (stateAndParams.getState() == null) {
                     // Bail out as we failed to resolve resource

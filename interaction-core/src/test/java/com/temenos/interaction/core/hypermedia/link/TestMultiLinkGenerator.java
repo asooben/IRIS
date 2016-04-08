@@ -48,8 +48,8 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
-        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, null, entity);
         Iterator<Link> iterator = links.iterator();
 
         assertEquals(2, links.size());
@@ -89,8 +89,8 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
-        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, null, entity);
         Iterator<Link> iterator = links.iterator();
 
         assertEquals(2, links.size());
@@ -122,10 +122,10 @@ public class TestMultiLinkGenerator {
         contactPropList.add(contactProp);
         OEntity entity = OEntities.createRequest(EdmEntitySet.newBuilder().build(), contactPropList, null);
         Transition t = customerState.getTransitions().get(0);
-        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
         MultivaluedMap<String, String> pathParameters = new MultivaluedMapImpl<String>();
         pathParameters.add("personName", "John");
-        Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
+        Collection<Link> links = linkGenerator.createLink(pathParameters, null, entity);
         Iterator<Link> iterator = links.iterator();
 
         assertEquals(2, links.size());

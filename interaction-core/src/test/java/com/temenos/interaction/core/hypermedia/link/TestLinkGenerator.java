@@ -46,8 +46,8 @@ public class TestLinkGenerator {
         Transition t = new Transition.Builder().source(mock(ResourceState.class)).target(mockTarget("/test/{noteId}"))
                 .build();
         Object entity = new TestNote("123");
-        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
-        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, null, entity);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test/123", result.getHref());
     }
@@ -62,8 +62,8 @@ public class TestLinkGenerator {
                 .build();
 
         Object entity = new TestNote("123");
-        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, entity);
-        Collection<Link> links = linkGenerator.createLink(null, null, null);
+        LinkGenerator linkGenerator = new LinkGeneratorImpl(engine, t, null);
+        Collection<Link> links = linkGenerator.createLink(null, null, entity);
         Link result = (!links.isEmpty()) ? links.iterator().next() : null;
         assertEquals("/baseuri/test?test=123", result.getHref());
     }

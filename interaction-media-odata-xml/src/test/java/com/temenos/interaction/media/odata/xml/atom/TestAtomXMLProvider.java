@@ -1729,8 +1729,8 @@ public class TestAtomXMLProvider {
 
 	private Link createLink(ResourceStateMachine rsm, Transition transition, Object entity,
 			MultivaluedMap<String, String> pathParameters, MultivaluedMap<String, String> queryParameters) {
-		LinkGenerator linkGenerator = new LinkGeneratorImpl(rsm, transition, entity);
-		Collection<Link> links = linkGenerator.createLink(pathParameters, queryParameters, null);
+		LinkGenerator linkGenerator = new LinkGeneratorImpl(rsm, transition, null);
+		Collection<Link> links = linkGenerator.createLink(pathParameters, queryParameters, entity);
 		return (!links.isEmpty()) ? links.iterator().next() : null;
 	}
 }

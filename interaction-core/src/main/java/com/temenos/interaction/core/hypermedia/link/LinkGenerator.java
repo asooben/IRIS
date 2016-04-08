@@ -22,6 +22,6 @@ import java.util.Map;
 public interface LinkGenerator {
 
     public Collection<Link> createLink(MultivaluedMap<String, String> pathParameters,
-            MultivaluedMap<String, String> queryParameters, InteractionContext ctx);
+            MultivaluedMap<String, String> queryParameters, Object entity);
 
 }

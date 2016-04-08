@@ -592,8 +592,8 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 				ResourceState targetState = ctx.getTargetState();
 				Transition redirectTransition = targetState.getRedirectTransition();
 
-				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, redirectTransition, entity).setAllQueryParameters(true);
-				Collection<Link> links = linkGenerator.createLink(pathParameters, ctx.getQueryParameters(), null);
+				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, redirectTransition, null).setAllQueryParameters(true);
+				Collection<Link> links = linkGenerator.createLink(pathParameters, ctx.getQueryParameters(), entity);
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 			}
@@ -608,8 +608,8 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");				
 				assert(resource instanceof EntityResource) : "Must be an EntityResource as we have created a new resource";
 
-				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
-				Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
+				LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, null);
+				Collection<Link> links = linkGenerator.createLink(pathParameters, null, ((EntityResource<?>)resource).getEntity());
 				Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 				responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 				Response autoResponse = getResource(headers, autoTransition, ctx);
@@ -642,8 +642,8 @@ public class HTTPHypermediaRIM implements HTTPResourceInteractionModel {
 					if (autoTransitions.size() > 1)
 						logger.warn("Resource state [" + currentState.getName() + "] has multiple auto-transitions. Using [" + autoTransition.getId() + "].");
 
-					LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, ((EntityResource<?>)resource).getEntity());
-					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(hypermediaEngine, autoTransition, null);
+					Collection<Link> links = linkGenerator.createLink(pathParameters, null, ((EntityResource<?>)resource).getEntity());
 					Link target = (!links.isEmpty()) ? links.iterator().next() : null;
 					responseBuilder = HeaderHelper.locationHeader(responseBuilder, target.getHref());
 					Response autoResponse = getResource(headers, autoTransition, ctx);

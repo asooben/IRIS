@@ -933,8 +933,8 @@ public class ResourceStateMachine {
 		// add link to GET 'self'
 		if (selfTransition == null)
 			selfTransition = state.getSelfTransition();
-		LinkGenerator selfLinkGenerator = new LinkGeneratorImpl(this, selfTransition, entity);
-		links.addAll(selfLinkGenerator.createLink(resourceProperties, null, null));
+		LinkGenerator selfLinkGenerator = new LinkGeneratorImpl(this, selfTransition, null);
+		links.addAll(selfLinkGenerator.createLink(resourceProperties, null, entity));
 
 		/*
 		 * Add links to other application states (resources)
@@ -964,8 +964,8 @@ public class ResourceStateMachine {
 						if (eLinks == null) {
 							eLinks = new ArrayList<Link>();
 						}
-						LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, er.getEntity());
-						Collection<Link> generatedLinks = linkGenerator.createLink(resourceProperties, null, ctx);
+						LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, ctx);
+						Collection<Link> generatedLinks = linkGenerator.createLink(resourceProperties, null, er.getEntity());
 
 						if (addLink(transition, ctx, er, rimHander)) {
 							eLinks.addAll(generatedLinks);
@@ -1018,8 +1018,8 @@ public class ResourceStateMachine {
 					entityResource = ((EntityResource<?>) ctx.getResource());
 				}
 				if (addLink(transition, ctx, entityResource, rimHander)) {
-					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, entity);
-					links.addAll(linkGenerator.createLink(resourceProperties, null, ctx));
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, ctx);
+					links.addAll(linkGenerator.createLink(resourceProperties, null, entity));
 				}
 			}
 		}
@@ -1138,8 +1138,8 @@ public class ResourceStateMachine {
 			for (String related : relationships) {
 				Transition transition = getTransitionsById().get(related);
 				if (transition != null) {
-					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, resourceEntity);
-					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, null);
+					Collection<Link> links = linkGenerator.createLink(pathParameters, null, resourceEntity);
 					target = (!links.isEmpty()) ? links.iterator().next() : null;
 				}
 			}
@@ -1176,8 +1176,8 @@ public class ResourceStateMachine {
 				// do not create link if this a pseudo state, effectively no
 				// state
 				if (!transition.getTarget().isPseudoState()) {
-					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, resourceEntity);
-					Collection<Link> links = linkGenerator.createLink(pathParameters, null, null);
+					LinkGenerator linkGenerator = new LinkGeneratorImpl(this, transition, null);
+					Collection<Link> links = linkGenerator.createLink(pathParameters, null, resourceEntity);
 					target = (!links.isEmpty()) ? links.iterator().next() : null;
 				}
 			}
