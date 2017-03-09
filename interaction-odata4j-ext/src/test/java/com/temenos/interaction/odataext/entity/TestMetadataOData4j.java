@@ -50,6 +50,7 @@ import org.odata4j.edm.EdmEntityType;
 import org.odata4j.edm.EdmNavigationProperty;
 import org.odata4j.edm.EdmProperty;
 import org.odata4j.edm.EdmProperty.CollectionKind;
+import org.odata4j.edm.EdmSchema;
 import org.odata4j.edm.EdmSimpleType;
 import org.odata4j.edm.EdmType;
 import org.odata4j.exceptions.NotFoundException;
@@ -70,6 +71,7 @@ public class TestMetadataOData4j {
 	public final static String METADATA_AIRLINE_XML_FILE = "AirlinesMetadata.xml";
 	public final static String METADATA_CUSTOMER_NON_EXP_XML_FILE = "CustomerNonExpandedMetadata.xml";
 	public final static String METADATA_LISTTOBAG_XML_FILE="issue126_metadata.xml";
+	private static final String METADATA_NO_MODEL_NAME = "metadataNoModelName.xml";
 	
 	private static String AIRLINE_NAMESPACE = "FlightResponderModel";
 	private static Metadata metadataAirline;
@@ -77,6 +79,7 @@ public class TestMetadataOData4j {
 	private static MetadataOData4j metadataAirlineOdata4j;
 	private static MetadataOData4j metadataCustomerNonExpandableModelOdata4j;
 	private static MetadataOData4j metadataListToBagOdata4j;
+	private static MetadataOData4j metadataOdata4jNoModelName;
 	
 	@BeforeClass
 	public static void setup()
@@ -163,6 +166,9 @@ public class TestMetadataOData4j {
 		// Convert metadata to odata4j metadata
 		metadataListToBagOdata4j = new MetadataOData4j(complexBagMetadata,listToBagHypermediaEngine);
 		metadataListToBagOdata4j.setOdataVersion(ODataVersion.V2);
+		
+		//Setup mock data for No Model Name test
+        setupMockDataForNoModelNameTest(termFactory);
 	}
 	
 	@Test(expected = RuntimeException.class)
@@ -814,6 +820,30 @@ public class TestMetadataOData4j {
 		Assert.assertTrue(ann.getValue().toString().contains("industry"));
 		Assert.assertTrue(ann.getValue().toString().contains("EntityWithRestriction_address.town"));
 		Assert.assertTrue(ann.getValue().toString().contains("EntityWithRestriction_address.postCode"));
-	}
+	}	
+	
+	@Test
+    public void testCustomerEntityNoModelName() {
+        EdmDataServices edmDataServices = metadataOdata4jNoModelName.getMetadata();
+        EdmSchema schema = edmDataServices.findSchema("CustomerModelNameModel");
+        Assert.assertNotNull(schema);
+    }
+    
+    private static void setupMockDataForNoModelNameTest(TermFactory termFactory) {
+        //Create mock state engine and read metadata file with no Model Name
+        ResourceState mockStateEngine = new ResourceState("SD", "ServiceDocument", new ArrayList<Action>(), "/");
+        mockStateEngine.addTransition(new Transition.Builder().target(new CollectionResourceState("Customer", "Customer", new ArrayList<Action>(), "/Customer")).build());
+        ResourceStateMachine defaultHypermediaEngine = new ResourceStateMachine(mockStateEngine);
+        
+        //Read the TestMetadataParser file
+        MetadataParser parser = new MetadataParser(termFactory);
+        InputStream is = parser.getClass().getClassLoader().getResourceAsStream(METADATA_NO_MODEL_NAME);
+        Metadata metadata = parser.parse(is);
+        Assert.assertNotNull(metadata);
+
+        // Convert TestMetadataParser to odata4j metadata
+        metadataOdata4jNoModelName = new MetadataOData4j(metadata, defaultHypermediaEngine);
+        metadataOdata4jNoModelName.setOdataVersion(ODataVersion.V2);
+    }
 
 }

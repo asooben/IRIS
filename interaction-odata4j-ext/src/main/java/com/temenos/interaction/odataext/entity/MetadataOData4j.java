@@ -396,8 +396,6 @@ public class MetadataOData4j {
 	 * @return
 	 */
 	public EdmDataServices createOData4jMetadata(Metadata metadata, ResourceStateMachine hypermediaEngine, ResourceState serviceDocument) {
-		String serviceName = metadata.getModelName();
-		String namespace = serviceName + Metadata.MODEL_SUFFIX;
 		Builder mdBuilder = EdmDataServices.newBuilder();
 		
 		mdBuilder.setVersion(odataVersion);
@@ -441,9 +439,12 @@ public class MetadataOData4j {
 				LOGGER.warn("Entity name '{}' does not have type. entityMetadata={}", state.getEntityName(), entityMetadata);
 			}
 		}
-					
-		// Add Navigation Properties
 		
+		//The model name is available after processing the states, i.e. the namespace should be created afterwards
+        String serviceName = metadata.getModelName();
+        String namespace = serviceName + Metadata.MODEL_SUFFIX;
+					
+		// Add Navigation Properties		
 		// build associations		
 		Map<EdmEntityType.Builder, Map<String, EdmAssociation.Builder>> entityTypeToStateAssociations = new HashMap<EdmEntityType.Builder, Map<String, EdmAssociation.Builder>>();
 		
